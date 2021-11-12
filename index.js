@@ -24,7 +24,9 @@ async function run() {
 
     const database = client.db("sagarWatches");
     const Products = database.collection("products");
+    const Orders = database.collection("orders");
     const Users = database.collection("users");
+    const Reviews = database.collection("reviews");
 
     // get all products
     app.get("/products", async (req, res) => {
@@ -37,6 +39,7 @@ async function run() {
       } catch (err) {
         res.status(500).json({
           status: "fail",
+          error: err.message,
         });
       }
     });
@@ -49,9 +52,15 @@ async function run() {
           products,
           status: "success",
         });
-      } catch (err) {}
+      } catch (err) {
+        res.status(500).json({
+          status: "fail",
+          error: err.message,
+        });
+      }
     });
 
+    // delete products
     app.delete("/products", async (req, res) => {
       try {
         const products = Products.deleteMany({});
@@ -62,6 +71,102 @@ async function run() {
         console.log(err);
         res.status(500).json({
           status: "fail",
+          error: err.message,
+        });
+      }
+    });
+
+    // create orders api endpoint
+    app.post("/orders", async (req, res) => {
+      try {
+        const data = req.body;
+        console.log(data);
+        const addedOrder = await Orders.insertOne({ ...data, isPending: true });
+
+        res.status(201).json({
+          status: "success",
+          order: addedOrder,
+        });
+      } catch (err) {
+        res.status(500).json({
+          error: err.message,
+          status: "fail",
+        });
+      }
+    });
+
+    // get all orders
+    app.get("/orders", async (req, res) => {
+      try {
+        const allOrders = await Orders.find({}).toArray();
+        res.status(200).json({
+          status: "success",
+          allOrders,
+        });
+      } catch (err) {
+        res.status(500).json({
+          error: err.message,
+          status: "fail",
+        });
+      }
+    });
+
+    // create user api endpoint
+    app.post("/users", async (req, res) => {
+      try {
+        const user = req.body;
+        const addUser = await Users.insertOne(user);
+        res.status(201).json({
+          status: "sucess",
+          user: addUser,
+        });
+        console.log(user);
+      } catch (err) {
+        res.status(500).json({
+          status: "fail",
+          error: err.message,
+        });
+      }
+    });
+
+    // create user from google signin
+    app.patch("/users", async (req, res) => {
+      try {
+        const user = req.body;
+        let filterQuery;
+        if (user.email) {
+          filterQuery = { email: user.email };
+        } else {
+          filterQuery = { userUID: user.userUID };
+        }
+        console.log(filterQuery, user);
+        const addedUser = await Users.updateOne(
+          filterQuery,
+          { $set: user },
+          { upsert: true }
+        );
+      } catch (err) {
+        res.status(500).json({
+          status: "fail",
+          error: err.message,
+        });
+      }
+    });
+
+    // create review endpoint
+    app.post("/reviews", async (req, res) => {
+      try {
+        const review = req.body;
+        console.log(review);
+        const addedReview = await Reviews.insertOne(review);
+        res.status(201).json({
+          status: "success",
+          review: addedReview,
+        });
+      } catch (err) {
+        res.status(500).json({
+          status: "fail",
+          error: err.message,
         });
       }
     });
