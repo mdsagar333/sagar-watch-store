@@ -47,7 +47,8 @@ async function run() {
     // create products
     app.post("/products", async (req, res) => {
       try {
-        const producs = await Products.insertMany(products);
+        const productData = req.body;
+        const addedProduct = await Products.insertOne(productData);
         res.status(200).json({
           products,
           status: "success",
@@ -61,9 +62,11 @@ async function run() {
     });
 
     // delete products
-    app.delete("/products", async (req, res) => {
+    app.delete("/products/:id", async (req, res) => {
       try {
-        const products = Products.deleteMany({});
+        const { id } = req.params;
+        const productId = new mongodb.ObjectId(id);
+        const products = Products.deleteOne({ _id: productId });
         res.status(204).json({
           status: "success",
         });
@@ -111,11 +114,69 @@ async function run() {
       }
     });
 
+    // get all order item api
+    app.get("/orders/:id", async (req, res) => {
+      try {
+        const { id } = req.params;
+        const allOrders = await Orders.find({ userUID: id }).toArray();
+        console.log("from all order with id", allOrders);
+        res.status(200).json({
+          status: "success",
+          allOrders,
+        });
+      } catch (err) {
+        res.status(500).json({
+          error: err.message,
+          status: "fail",
+        });
+      }
+    });
+
+    // update order item with ID api
+    app.patch("/orders/:id", async (req, res) => {
+      try {
+        const { id } = req.params;
+        const orderId = new mongodb.ObjectId(id);
+        const updatedOrder = await Orders.updateOne(
+          { _id: orderId },
+          {
+            $set: { isPending: false },
+          }
+        );
+
+        res.status(200).json({
+          status: "success",
+        });
+      } catch (err) {
+        res.status(500).json({
+          error: err.message,
+          status: "fail",
+        });
+      }
+    });
+
+    // delete order item with ID api
+    app.delete("/orders/:id", async (req, res) => {
+      try {
+        const { id } = req.params;
+        const deleteID = new mongodb.ObjectId(id);
+        const deleteOrder = await Orders.deleteOne({ _id: deleteID });
+        res.status(204).json({
+          status: "success",
+        });
+      } catch (err) {
+        res.status(500).json({
+          error: err.message,
+          status: "fail",
+        });
+      }
+    });
+
     // create user api endpoint
     app.post("/users", async (req, res) => {
       try {
         const user = req.body;
-        const addUser = await Users.insertOne(user);
+        const addUser = await Users.insertOne({ ...user });
         res.status(201).json({
           status: "sucess",
           user: addUser,
@@ -129,22 +190,84 @@ async function run() {
       }
     });
 
+    // get all users
+
+    app.get("/users", async (req, res) => {
+      try {
+        const allUsers = await Users.find({}).toArray();
+
+        res.status(200).json({
+          status: "success",
+          users: allUsers,
+        });
+      } catch (err) {
+        res.status(500).json({
+          status: "fail",
+          error: err.message,
+        });
+      }
+    });
+
     // create user from google signin
     app.patch("/users", async (req, res) => {
       try {
-        const user = req.body;
+        const user = { ...req.body, role: "user" };
         let filterQuery;
         if (user.email) {
           filterQuery = { email: user.email };
         } else {
           filterQuery = { userUID: user.userUID };
         }
-        console.log(filterQuery, user);
         const addedUser = await Users.updateOne(
           filterQuery,
           { $set: user },
           { upsert: true }
         );
+
+        res.status(201).json({
+          status: "success",
+        });
+      } catch (err) {
+        res.status(500).json({
+          status: "fail",
+          error: err.message,
+        });
+      }
+    });
+
+    // make admin api endpoint
+    app.post("/users/admin", async (req, res) => {
+      try {
+        const filterQuery = req.body;
+        const Admin = await Users.updateOne(filterQuery, {
+          $set: { role: "admin" },
+        });
+        console.log(Admin);
+        if (Admin.acknowledged === true) {
+          res.status(201).json({
+            status: "success",
+          });
+        }
+      } catch (err) {
+        res.status(500).json({
+          status: "fail",
+          error: err.message,
+        });
+      }
+    });
+
+    // get admin api endpoint
+    app.get("/users/admin/:uid", async (req, res) => {
+      try {
+        const uid = req.params.uid;
+        let admin = false;
+        const user = await Users.findOne({ userUID: uid });
+        if (user) {
+          if (user.role === "admin") {
+            admin = true;
+          }
+        }
+        res.status(200).json({ isAdmin: admin });
       } catch (err) {
         res.status(500).json({
           status: "fail",
@@ -162,6 +285,22 @@ async function run() {
         res.status(201).json({
           status: "success",
           review: addedReview,
+        });
+      } catch (err) {
+        res.status(500).json({
+          status: "fail",
+          error: err.message,
+        });
+      }
+    });
+
+    app.get("/reviews", async (req, res) => {
+      try {
+        const reviews = await Reviews.find({}).toArray();
+
+        res.status(200).json({
+          status: "success",
+          reviews,
         });
       } catch (err) {
         res.status(500).json({
