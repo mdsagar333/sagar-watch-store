@@ -1,22 +1,45 @@
+const path = require("path");
 const express = require("express");
 const cors = require("cors");
 const mongodb = require("mongodb");
 const { MongoClient } = require("mongodb");
+const multer = require("multer");
 const port = process.env.PORT || 5000;
 require("dotenv").config();
 const app = express();
 
+// uploads options
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "./public/images");
+  },
+  filename: (req, file, cb) => {
+    const ext = file.mimetype.split("/")[1];
+    const imageName = `${Date.now()}${Math.round(Math.random() * 2000)}.${ext}`;
+
+    cb(null, imageName);
+  },
+});
+
+// globa middleware
+app.use("/public", express.static("public"));
+app.use(express.static(path.join(__dirname, "public")));
 app.use(cors());
 app.use(express.json());
 
+// image upload middleware
+const upload = multer({ storage: storage });
+
+// database url
 const dbUri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.tcz9h.mongodb.net/sagarWatches?retryWrites=true&w=majority`;
 
+// conneting mongodb
 const client = new MongoClient(dbUri, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 });
 
-const products = require("./product");
+const blogs = require("./blogs");
 
 async function run() {
   try {
@@ -27,11 +50,15 @@ async function run() {
     const Orders = database.collection("orders");
     const Users = database.collection("users");
     const Reviews = database.collection("reviews");
+    const Blogs = database.collection("blogs");
 
     // get all products
     app.get("/products", async (req, res) => {
       try {
-        const products = await Products.find({}).toArray();
+        const limit = parseInt(req.query.limit) || 100;
+
+        console.log(limit);
+        const products = await Products.find({}).limit(limit).toArray();
         res.status(200).json({
           products,
           status: "success",
@@ -45,10 +72,19 @@ async function run() {
     });
 
     // create products
-    app.post("/products", async (req, res) => {
+    app.post("/products", upload.single("image"), async (req, res) => {
       try {
+        const imagePath = `${req.protocol}://${req.headers.host}/images/${req.file.filename}`;
         const productData = req.body;
-        const addedProduct = await Products.insertOne(productData);
+        const product = {
+          ...productData,
+          feature: JSON.parse(productData.feature),
+        };
+        const addedProduct = await Products.insertOne({
+          ...product,
+          image: imagePath,
+        });
+
         res.status(200).json({
           products,
           status: "success",
@@ -114,7 +150,7 @@ async function run() {
       }
     });
 
-    // get all order item api
+    // get all order with id api
     app.get("/orders/:id", async (req, res) => {
       try {
         const { id } = req.params;
@@ -294,6 +330,7 @@ async function run() {
       }
     });
 
+    // get all reviews
     app.get("/reviews", async (req, res) => {
       try {
         const reviews = await Reviews.find({}).toArray();
@@ -301,6 +338,58 @@ async function run() {
         res.status(200).json({
           status: "success",
           reviews,
+        });
+      } catch (err) {
+        res.status(500).json({
+          status: "fail",
+          error: err.message,
+        });
+      }
+    });
+
+    // create bolg api
+    app.post("/blogs", async (req, res) => {
+      try {
+        const blogData = req.body;
+        const addBlog = await Blogs.insertMany(blogs);
+        res.status(201).json({
+          status: "success",
+          addBlog,
+        });
+      } catch (err) {
+        res.status(500).json({
+          status: "fail",
+          error: err.message,
+        });
+      }
+    });
+
+    // get all blogs
+
+    app.get("/blogs", async (req, res) => {
+      try {
+        const blogs = await Blogs.find({}).toArray();
+        res.status(200).json({
+          status: "success",
+          blogs,
+        });
+      } catch (err) {
+        res.status(500).json({
+          status: "fail",
+          error: err.message,
+        });
+      }
+    });
+
+    // get blogs by id
+    app.get("/blogs/:id", async (req, res) => {
+      try {
+        const { id } = req.params;
+        const blogID = new mongodb.ObjectId(id);
+        const blog = await Blogs.findOne({ _id: blogID });
+        res.status(200).json({
+          status: "success",
+          blog,
         });
       } catch (err) {
         res.status(500).json({
