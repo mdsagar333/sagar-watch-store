@@ -115,12 +115,56 @@ async function run() {
       }
     });
 
+    // get products against array of product id
+
+    app.post("/product-selected", async (req, res) => {
+      try {
+        const productArr = req.body;
+        const productID = productArr.map((id) => new mongodb.ObjectId(id));
+        const selectedProducts = await Products.find({
+          _id: { $in: productID },
+        }).toArray();
+        res.status(200).json({
+          status: "success",
+          products: selectedProducts,
+        });
+      } catch (err) {
+        console.log(err);
+        res.status(500).json({
+          status: "fail",
+          error: err.message,
+        });
+      }
+    });
+
     // create orders api endpoint
     app.post("/orders", async (req, res) => {
       try {
         const data = req.body;
-        console.log(data);
         const addedOrder = await Orders.insertOne({ ...data, isPending: true });
+
+        res.status(201).json({
+          status: "success",
+          order: addedOrder,
+        });
+      } catch (err) {
+        res.status(500).json({
+          error: err.message,
+          status: "fail",
+        });
+      }
+    });
+
+    // create order from cart
+    app.post("/cart-orders", async (req, res) => {
+      try {
+        const data = req.body;
+        const dataWithStatus = data.map((order) => {
+          return { ...order, isPending: true };
+        });
+
+        console.log(dataWithStatus);
+        // const addedOrder = await Orders.insertMany({ ...data, isPending: true });
 
         res.status(201).json({
           status: "success",
