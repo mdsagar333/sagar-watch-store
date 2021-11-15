@@ -40,10 +40,10 @@ const client = new MongoClient(dbUri, {
 });
 
 const blogs = require("./blogs");
-
+const products = require("./product");
 async function run() {
   try {
-    await client.connect();
+    await client.connect(() => console.log("db connected"));
 
     const database = client.db("sagarWatches");
     const Products = database.collection("products");
@@ -70,6 +70,18 @@ async function run() {
         });
       }
     });
+
+    // delete all product api
+    // app.delete("/products", async (req, res) => {
+    //   try {
+    //     const deleted = await Products.deleteMany({});
+    //   } catch (err) {
+    //     res.status(500).json({
+    //       status: "fail",
+    //       error: err.message,
+    //     });
+    //   }
+    // });
 
     // create products
     app.post("/products", upload.single("image"), async (req, res) => {
@@ -162,10 +174,9 @@ async function run() {
         const dataWithStatus = data.map((order) => {
           return { ...order, isPending: true };
         });
-
         console.log(dataWithStatus);
-        // const addedOrder = await Orders.insertMany({ ...data, isPending: true });
-
+        const addedOrder = await Orders.insertMany(dataWithStatus);
+        console.log(addedOrder);
         res.status(201).json({
           status: "success",
           order: addedOrder,
@@ -241,6 +252,27 @@ async function run() {
         const { id } = req.params;
         const deleteID = new mongodb.ObjectId(id);
         const deleteOrder = await Orders.deleteOne({ _id: deleteID });
+        res.status(204).json({
+          status: "success",
+        });
+      } catch (err) {
+        res.status(500).json({
+          error: err.message,
+          status: "fail",
+        });
+      }
+    });
+
+    // delete order item by normal user
+    app.delete("/orders/:productId/:userID", async (req, res) => {
+      try {
+        const { productId, userID } = req.params;
+        console.log(productId, userID);
+        const deleteID = new mongodb.ObjectId(productId);
+        const deleteOrder = await Orders.deleteOne({
+          _id: deleteID,
+          userUID: userID,
+        });
         res.status(204).json({
           status: "success",
         });
