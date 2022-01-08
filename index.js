@@ -52,6 +52,30 @@ async function run() {
     const Reviews = database.collection("reviews");
     const Blogs = database.collection("blogs");
 
+    // creating payment intend
+    app.post("/create-payment-intent", async (req, res) => {
+      try {
+        const { price } = req.body;
+        const amount = price * 100;
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount: amount,
+          currency: "usd",
+          payment_method_types: ["card"],
+        });
+
+        res.status(200).json({
+          status: "success",
+          clientSecret: paymentIntent.client_secret,
+        });
+      } catch (err) {
+        console.log(err);
+        res.status(500).json({
+          status: "fail",
+          error: err.message,
+        });
+      }
+    });
+
     // get all products
     app.get("/products", async (req, res) => {
       try {
